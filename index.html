@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bonkstorm</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="stage">
+      <canvas id="game" aria-label="Bonkstorm game canvas"></canvas>
+
+      <header id="hud" class="hud is-hidden">
+        <div class="hud-block title-block">
+          <span class="game-mark">BONKSTORM</span>
+          <span id="timer">00:00</span>
+        </div>
+        <div class="hud-block stat-strip">
+          <span>LV <strong id="level">1</strong></span>
+          <span>KOs <strong id="kills">0</strong></span>
+          <span>Wave <strong id="wave">1</strong></span>
+        </div>
+        <div class="hud-block meters">
+          <div class="meter hp-meter"><span id="hpFill"></span></div>
+          <div class="meter xp-meter"><span id="xpFill"></span></div>
+        </div>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="Pause" title="Pause">II</button>
+      </header>
+
+      <aside id="build" class="build is-hidden"></aside>
+      <div id="toast" class="toast"></div>
+
+      <section id="menu" class="screen menu-screen">
+        <div class="menu-copy">
+          <p class="eyebrow">Arcade Survival Roguelite</p>
+          <h1>Bonkstorm</h1>
+          <p class="tagline">The rift is loud tonight.</p>
+        </div>
+
+        <div class="roster" id="roster">
+          <button class="hero-card is-selected" type="button" data-hero="runner">
+            <span class="portrait runner"></span>
+            <span class="hero-name">Rift Runner</span>
+            <span class="hero-stat">Fast bolts, wide magnet</span>
+          </button>
+          <button class="hero-card" type="button" data-hero="warden">
+            <span class="portrait warden"></span>
+            <span class="hero-name">Moss Warden</span>
+            <span class="hero-stat">Orbit hammer, sturdy armor</span>
+          </button>
+          <button class="hero-card" type="button" data-hero="spark">
+            <span class="portrait spark"></span>
+            <span class="hero-name">Volt Jester</span>
+            <span class="hero-stat">Chain sparks, risky power</span>
+          </button>
+        </div>
+
+        <button id="startButton" class="primary-button" type="button">Start Run</button>
+      </section>
+
+      <section id="levelScreen" class="screen modal-screen is-hidden" aria-live="polite">
+        <div class="modal-panel">
+          <p class="eyebrow">Level Up</p>
+          <h2>Pick a Bonk</h2>
+          <div id="upgradeChoices" class="upgrade-grid"></div>
+        </div>
+      </section>
+
+      <section id="pauseScreen" class="screen modal-screen is-hidden">
+        <div class="modal-panel pause-panel">
+          <p class="eyebrow">Paused</p>
+          <h2>Catch Your Breath</h2>
+          <button id="resumeButton" class="primary-button" type="button">Resume</button>
+          <button id="restartButton" class="secondary-button" type="button">Restart</button>
+        </div>
+      </section>
+
+      <section id="resultScreen" class="screen modal-screen is-hidden">
+        <div class="modal-panel result-panel">
+          <p id="resultEyebrow" class="eyebrow">Run Complete</p>
+          <h2 id="resultTitle">Bonked</h2>
+          <div id="resultStats" class="result-stats"></div>
+          <button id="againButton" class="primary-button" type="button">Run It Back</button>
+        </div>
+      </section>
+
+      <div id="touchStick" class="touch-stick" aria-hidden="true"><span></span></div>
+      <div class="vignette" aria-hidden="true"></div>
+    </main>
+
+    <script src="game.js" defer></script>
+  </body>
+</html>

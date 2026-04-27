@@ -17,6 +17,8 @@ Open `index.html` in a browser.
 
 - Three playable characters
 - Three.js 3D arena, lighting, shadows, props, pickups, and effects
+- Small solid obstacles that block movement and shots
+- Map chests you can pick up during the run
 - Auto-attacking weapons with upgrade paths
 - Random rarity level-up cards
 - XP gems, chest relics, health pickups, elites, and a boss

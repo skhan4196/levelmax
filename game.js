@@ -161,6 +161,7 @@
   let selectedHero = "runner";
   let mode = "menu";
   let game = null;
+  let activeObstacles = [];
   let lastTime = 0;
   let toastTimer = 0;
   let projectileId = 0;
@@ -254,6 +255,7 @@
       ring: new THREE.RingGeometry(0.82, 1, 72),
       rock: new THREE.DodecahedronGeometry(1, 0),
       crystal: new THREE.ConeGeometry(1, 2.4, 5),
+      crate: new THREE.BoxGeometry(1, 1, 1),
       chest: new THREE.BoxGeometry(36, 24, 28),
       line: new THREE.CylinderGeometry(2, 2, 1, 8),
     };
@@ -721,8 +723,41 @@
     while (group.children.length) group.remove(group.children[0]);
   }
 
+  function registerObstacle(mesh, x, y, radius) {
+    activeObstacles.push({ x, y, r: radius });
+    mesh.userData.obstacleRadius = radius;
+    propGroup.add(mesh);
+  }
+
+  function hitsObstacle(x, y, radius = 0) {
+    return activeObstacles.some((obstacle) => distSq(x, y, obstacle.x, obstacle.y) < (radius + obstacle.r) ** 2);
+  }
+
+  function resolveObstacleCollision(entity, radius) {
+    for (const obstacle of activeObstacles) {
+      const dx = entity.x - obstacle.x;
+      const dy = entity.y - obstacle.y;
+      const minDistance = radius + obstacle.r;
+      const distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared >= minDistance * minDistance) continue;
+      const distance = Math.sqrt(distanceSquared) || 1;
+      const push = minDistance - distance;
+      entity.x += (dx / distance) * push;
+      entity.y += (dy / distance) * push;
+    }
+    entity.x = clamp(entity.x, 86, WORLD_SIZE - 86);
+    entity.y = clamp(entity.y, 86, WORLD_SIZE - 86);
+  }
+
+  function openMapSpot(x, y, radius) {
+    const centerGap = 390;
+    if (Math.abs(x - WORLD_SIZE / 2) < centerGap && Math.abs(y - WORLD_SIZE / 2) < centerGap) return false;
+    return !hitsObstacle(x, y, radius);
+  }
+
   function buildWorld(seed) {
     clearGroup(propGroup);
+    activeObstacles = [];
     materials.ground.map = makeGroundTexture(seed);
     materials.ground.needsUpdate = true;
 
@@ -756,32 +791,38 @@
     propGroup.add(east);
 
     const rng = mulberry32(seed + 77);
-    for (let i = 0; i < 190; i += 1) {
+    const placed = [];
+    let attempts = 0;
+    while (placed.length < 115 && attempts < 1600) {
+      attempts += 1;
       const x = 130 + rng() * (WORLD_SIZE - 260);
       const z = 130 + rng() * (WORLD_SIZE - 260);
-      if (Math.abs(x - WORLD_SIZE / 2) < 760 && Math.abs(z - WORLD_SIZE / 2) < 760) continue;
+      if (Math.abs(x - WORLD_SIZE / 2) < 720 && Math.abs(z - WORLD_SIZE / 2) < 720) continue;
+      const radius = 22 + rng() * 28;
+      if (placed.some((item) => distSq(x, z, item.x, item.y) < (radius + item.r + 95) ** 2)) continue;
       const roll = rng();
       let mesh;
-      if (roll < 0.45) {
+      if (roll < 0.62) {
         mesh = new THREE.Mesh(geometries.rock, materials.rock);
-        const s = 10 + rng() * 20;
+        const s = radius * (0.75 + rng() * 0.2);
         mesh.scale.set(s * (0.9 + rng() * 0.5), s * (0.55 + rng() * 0.4), s * (0.9 + rng() * 0.5));
         mesh.position.set(x, mesh.scale.y * 0.8, z);
-      } else if (roll < 0.74) {
+      } else if (roll < 0.88) {
         mesh = new THREE.Mesh(geometries.crystal, rng() > 0.5 ? materials.crystalBlue : materials.crystalPink);
-        const s = 10 + rng() * 20;
+        const s = radius * (0.8 + rng() * 0.28);
         mesh.scale.set(s * 0.6, s, s * 0.6);
         mesh.position.set(x, s, z);
       } else {
-        mesh = new THREE.Mesh(geometries.brute, materials.cliff);
-        const s = 9 + rng() * 18;
-        mesh.scale.set(s * 0.9, s * 1.25, s * 0.9);
-        mesh.position.set(x, s, z);
+        mesh = new THREE.Mesh(geometries.crate, materials.cliff);
+        const s = radius * (0.95 + rng() * 0.22);
+        mesh.scale.set(s * 1.25, s * 0.72, s);
+        mesh.position.set(x, mesh.scale.y * 0.5, z);
       }
       mesh.rotation.y = rng() * TAU;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      propGroup.add(mesh);
+      placed.push({ x, y: z, r: radius });
+      registerObstacle(mesh, x, z, radius);
     }
   }
 
@@ -863,11 +904,18 @@
 
   function spawnPoint(near = false) {
     const player = game.player;
-    const angle = game.rng() * TAU;
-    const distance = near ? 280 + game.rng() * 320 : Math.max(width, height) * 0.74 + 240 + game.rng() * 330;
+    for (let i = 0; i < 28; i += 1) {
+      const angle = game.rng() * TAU;
+      const distance = near ? 280 + game.rng() * 320 : Math.max(width, height) * 0.74 + 240 + game.rng() * 330;
+      const point = {
+        x: clamp(player.x + Math.cos(angle) * distance, 80, WORLD_SIZE - 80),
+        y: clamp(player.y + Math.sin(angle) * distance, 80, WORLD_SIZE - 80),
+      };
+      if (!hitsObstacle(point.x, point.y, 72)) return point;
+    }
     return {
-      x: clamp(player.x + Math.cos(angle) * distance, 80, WORLD_SIZE - 80),
-      y: clamp(player.y + Math.sin(angle) * distance, 80, WORLD_SIZE - 80),
+      x: clamp(player.x + 430, 80, WORLD_SIZE - 80),
+      y: player.y,
     };
   }
 
@@ -967,6 +1015,7 @@
     game = createGame(selectedHero);
     buildWorld(game.seed);
     createPlayerMesh(game.player);
+    spawnMapChests();
     mode = "playing";
     lastTime = performance.now();
     hide(ui.menu);
@@ -1018,8 +1067,8 @@
     mode = "result";
     hide(ui.levelScreen);
     hide(ui.pauseScreen);
-    ui.resultEyebrow.textContent = victory ? "Core Destroyed" : "Run Complete";
-    ui.resultTitle.textContent = victory ? "Level Maxed" : "Overrun";
+    ui.resultEyebrow.textContent = victory ? "Core Destroyed" : "You died, try again";
+    ui.resultTitle.textContent = victory ? "Level Maxed" : "You died, try again";
     ui.resultStats.innerHTML = [
       `<span><strong>${formatTime(game.time)}</strong>Time</span>`,
       `<span><strong>${game.kills}</strong>KOs</span>`,
@@ -1185,6 +1234,7 @@
     player.vy = lerp(player.vy, targetVy, 1 - Math.pow(0.002, dt));
     player.x = clamp(player.x + player.vx * dt, 86, WORLD_SIZE - 86);
     player.y = clamp(player.y + player.vy * dt, 86, WORLD_SIZE - 86);
+    resolveObstacleCollision(player, player.r + 6);
     if (player.regen > 0) player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
     if (player.mesh) {
       player.mesh.position.set(player.x, 0, player.y);
@@ -1348,6 +1398,7 @@
 
       enemy.x = clamp(enemy.x, 48, WORLD_SIZE - 48);
       enemy.y = clamp(enemy.y, 48, WORLD_SIZE - 48);
+      resolveObstacleCollision(enemy, enemy.r + 4);
       if (enemy.mesh) {
         enemy.mesh.position.set(enemy.x, 0, enemy.y);
         enemy.mesh.lookAt(player.x, 0, player.y);
@@ -1460,6 +1511,7 @@
       projectile.life -= dt;
       projectile.mesh.position.set(projectile.x, 34, projectile.y);
       projectile.mesh.rotation.y += dt * 9;
+      if (hitsObstacle(projectile.x, projectile.y, projectile.r + 4)) projectile.dead = true;
       if (projectile.life <= 0) projectile.dead = true;
       for (const enemy of game.enemies) {
         if (enemy.dead || projectile.dead || projectile.hit.has(enemy.id)) continue;
@@ -1483,6 +1535,7 @@
       shot.life -= dt;
       shot.mesh.position.set(shot.x, 30, shot.y);
       shot.mesh.rotation.x += dt * 7;
+      if (hitsObstacle(shot.x, shot.y, shot.r + 4)) shot.dead = true;
       if (shot.life <= 0) shot.dead = true;
       if (!shot.dead && distSq(shot.x, shot.y, player.x, player.y) < (shot.r + player.r) ** 2) {
         shot.dead = true;
@@ -1655,10 +1708,54 @@
   }
 
   function spawnPickup(type, x, y, value = 0) {
+    if (hitsObstacle(x, y, 32)) {
+      for (let i = 0; i < 20; i += 1) {
+        const angle = game.rng() * TAU;
+        const distance = 42 + i * 18;
+        const nx = clamp(x + Math.cos(angle) * distance, 90, WORLD_SIZE - 90);
+        const ny = clamp(y + Math.sin(angle) * distance, 90, WORLD_SIZE - 90);
+        if (!hitsObstacle(nx, ny, 34)) {
+          x = nx;
+          y = ny;
+          break;
+        }
+      }
+    }
     const mesh = type === "chest" ? createChestMesh() : createHeartMesh();
     mesh.position.set(x, 18, y);
     dynamicGroup.add(mesh);
     game.pickups.push({ type, x, y, r: type === "chest" ? 22 : 15, age: 0, value, mesh, dead: false });
+  }
+
+  function spawnMapChests() {
+    const chestCount = 7;
+    let placed = 0;
+    let attempts = 0;
+    const player = game.player;
+    const starterChests = [
+      { x: player.x + 260, y: player.y - 120 },
+      { x: player.x - 300, y: player.y + 130 },
+      { x: player.x + 150, y: player.y + 330 },
+    ];
+    for (const chest of starterChests) {
+      const x = clamp(chest.x, 120, WORLD_SIZE - 120);
+      const y = clamp(chest.y, 120, WORLD_SIZE - 120);
+      if (!hitsObstacle(x, y, 58)) {
+        spawnPickup("chest", x, y);
+        placed += 1;
+      }
+    }
+    while (placed < chestCount && attempts < 240) {
+      attempts += 1;
+      const angle = game.rng() * TAU;
+      const distance = 440 + game.rng() * 1250;
+      const x = clamp(player.x + Math.cos(angle) * distance, 120, WORLD_SIZE - 120);
+      const y = clamp(player.y + Math.sin(angle) * distance, 120, WORLD_SIZE - 120);
+      if (!openMapSpot(x, y, 58)) continue;
+      if (game.pickups.some((pickup) => pickup.type === "chest" && distSq(x, y, pickup.x, pickup.y) < 360 * 360)) continue;
+      spawnPickup("chest", x, y);
+      placed += 1;
+    }
   }
 
   function openChest() {

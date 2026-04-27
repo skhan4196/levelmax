@@ -1,6 +1,6 @@
-# Bonkstorm
+# LevelMax
 
-Bonkstorm is an original browser survival roguelite inspired by the broad loop of Megabonk: survive waves, collect XP, pick random upgrades, grab chest loot, and beat the timed boss.
+LevelMax is an original 3D browser survival roguelite: survive faster waves, collect XP, pick random rarity upgrades, grab chest loot, and beat the timed core boss.
 
 ## Play
 
@@ -11,11 +11,13 @@ Open `index.html` in a browser.
 - Move: WASD or arrow keys
 - Pause: Space or Escape
 - Choose upgrades: click a card or press 1, 2, or 3
+- Return home: use the Home Screen button from pause or results
 
 ## Included
 
 - Three playable characters
+- Three.js 3D arena, lighting, shadows, props, pickups, and effects
 - Auto-attacking weapons with upgrade paths
 - Random rarity level-up cards
 - XP gems, chest relics, health pickups, elites, and a boss
-- Procedural canvas arena art
+- Harder wave pacing and earlier boss pressure
